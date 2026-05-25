@@ -16,6 +16,7 @@ function RegisterPage() {
   const [formValues, setFormValues] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { registerAccount } = useApp()
   const location = useLocation()
@@ -39,7 +40,7 @@ function RegisterPage() {
     })
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     setSubmitError('')
 
@@ -50,14 +51,22 @@ function RegisterPage() {
       return
     }
 
-    const result = registerAccount(formValues)
-    if (!result.ok) {
-      setSubmitError(result.error)
-      return
+    setIsSubmitting(true)
+    try {
+      await registerAccount(formValues)
+      const redirectTo = location.state?.redirectTo ?? '/'
+      navigate(redirectTo, { replace: true })
+    } catch (err) {
+      if (err.status === 409) {
+        setSubmitError('Email ini sudah terdaftar. Silakan login.')
+      } else if (err.status === 400 && err.errors) {
+        setErrors(err.errors)
+      } else {
+        setSubmitError(err.message || 'Terjadi kesalahan. Silakan coba lagi.')
+      }
+    } finally {
+      setIsSubmitting(false)
     }
-
-    const redirectTo = location.state?.redirectTo ?? '/'
-    navigate(redirectTo, { replace: true })
   }
 
   return (
@@ -143,8 +152,8 @@ function RegisterPage() {
 
           {submitError && <p className="submit-error">{submitError}</p>}
 
-          <button type="submit" className="primary-button">
-            Buat Akun
+          <button type="submit" className="primary-button" disabled={isSubmitting}>
+            {isSubmitting ? 'Memproses...' : 'Buat Akun'}
           </button>
         </form>
 

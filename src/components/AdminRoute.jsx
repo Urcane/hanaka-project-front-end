@@ -1,24 +1,24 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 
-function ProtectedRoute({ children }) {
+function AdminRoute({ children }) {
   const { currentUser, isAuthLoading } = useApp()
   const location = useLocation()
 
   if (isAuthLoading) {
     return (
-      <section className="panel stack-gap-md" style={{ textAlign: 'center' }}>
+      <section className="admin-loading">
         <p>Memuat...</p>
       </section>
     )
   }
 
-  if (!currentUser) {
+  if (!currentUser || currentUser.role !== 'admin') {
     return (
       <Navigate
         to="/login"
         replace
-        state={{ redirectTo: location.pathname + location.search }}
+        state={{ redirectTo: location.pathname }}
       />
     )
   }
@@ -26,4 +26,4 @@ function ProtectedRoute({ children }) {
   return children
 }
 
-export default ProtectedRoute
+export default AdminRoute

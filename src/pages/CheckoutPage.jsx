@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 import {
-  buildCheckoutPayload,
   PAYMENT_METHODS,
   validateCheckoutInput,
 } from '../models/checkoutModel.js'
@@ -29,6 +28,7 @@ function CheckoutPage() {
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
   const [successOrder, setSuccessOrder] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   if (successOrder) {
     return (
@@ -79,7 +79,7 @@ function CheckoutPage() {
     })
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     setSubmitError('')
     setSuccessOrder(null)
@@ -88,24 +88,42 @@ function CheckoutPage() {
     setErrors(validationErrors)
     if (hasAnyError(validationErrors)) return
 
-    const checkoutPayload = buildCheckoutPayload(formValues)
-    const result = placeOrder(checkoutPayload)
-    if (!result.ok) {
-      setSubmitError(result.error)
-      return
+    const payload = {
+      customerName: formValues.customerName.trim(),
+      phone: String(formValues.phone).replace(/[\s-]/g, ''),
+      pickupMethod: formValues.pickupMethod,
+      pickupDate: formValues.pickupMethod === 'pickup' ? formValues.pickupDate : '',
+      pickupTime: formValues.pickupMethod === 'pickup' ? formValues.pickupTime : '',
+      address:
+        formValues.pickupMethod === 'delivery' ? formValues.address.trim() : '',
+      addressNote: formValues.addressNote?.trim() ?? '',
+      paymentMethod: formValues.paymentMethod,
     }
 
-    if (checkoutPayload.paymentMethod === 'qris') {
-      navigate(`/payment/${result.order.id}`)
-      return
-    }
+    setIsSubmitting(true)
+    try {
+      const result = await placeOrder(payload)
 
-    if (currentUser) {
-      navigate('/orders')
-      return
-    }
+      if (payload.paymentMethod === 'qris') {
+        navigate(`/payment/${result.order.id}`)
+        return
+      }
 
-    setSuccessOrder(result.order)
+      if (currentUser) {
+        navigate('/orders')
+        return
+      }
+
+      setSuccessOrder(result.order)
+    } catch (err) {
+      if (err.status === 400 && err.errors) {
+        setErrors(err.errors)
+      } else {
+        setSubmitError(err.message || 'Terjadi kesalahan. Silakan coba lagi.')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const isPickup = pickupMethod === 'pickup'
@@ -214,8 +232,8 @@ function CheckoutPage() {
 
           {submitError && <p className="submit-error">{submitError}</p>}
 
-          <button type="submit" className="continue-btn">
-            Continue
+          <button type="submit" className="continue-btn" disabled={isSubmitting}>
+            {isSubmitting ? 'Memproses...' : 'Continue'}
           </button>
         </form>
 

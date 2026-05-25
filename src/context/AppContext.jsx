@@ -1,320 +1,196 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AppContext } from './appContextObject.js'
-import { buildAccount } from '../models/authModel.js'
+import { getFeaturedProducts } from '../models/productModel.js'
+import { fetchProducts } from '../services/productsApi.js'
+import { apiGetMe, apiLogin, apiLogout, apiRegister } from '../services/authApi.js'
 import {
-  buildCartItem,
-  computeCartSubtotal,
-  rebuildCartItem,
-  updateCartItemQuantity,
-} from '../models/cartModel.js'
-import { createOrder, markOrderAsPaid } from '../models/orderModel.js'
-import { findProductById, findSizeOption } from '../models/productModel.js'
+  apiAddCartItem,
+  apiClearCart,
+  apiFetchCart,
+  apiRemoveCartItem,
+  apiUpdateCartItem,
+  apiUpdateCartItemQuantity,
+} from '../services/cartApi.js'
 import {
-  loadCartsByUser,
-  loadOrders,
-  loadSessionUserId,
-  loadUsers,
-  saveCartsByUser,
-  saveOrders,
-  saveSessionUserId,
-  saveUsers,
-} from '../services/storageService.js'
-
-function resolveCustomization(payload) {
-  const product = findProductById(payload.productId)
-  if (!product) {
-    return { error: 'Produk tidak ditemukan.' }
-  }
-
-  const sizeOption = findSizeOption(product, payload.sizeId)
-  if (!sizeOption) {
-    return { error: 'Ukuran cake tidak valid.' }
-  }
-
-  return { product, sizeOption }
-}
-
-const GUEST_CART_KEY = '__guest__'
-
-function mergeGuestCartToUser(previousCarts, userId) {
-  const guestCart = previousCarts[GUEST_CART_KEY] ?? []
-  const userCart = previousCarts[userId] ?? []
-
-  if (!guestCart.length) {
-    return {
-      ...previousCarts,
-      [userId]: userCart,
-    }
-  }
-
-  return {
-    ...previousCarts,
-    [userId]: [...userCart, ...guestCart],
-    [GUEST_CART_KEY]: [],
-  }
-}
+  apiFetchOrderById,
+  apiFetchOrders,
+  apiMarkOrderPaid,
+  apiPlaceOrder,
+} from '../services/ordersApi.js'
 
 export function AppProvider({ children }) {
-  const [users, setUsers] = useState(() => loadUsers())
-  const [sessionUserId, setSessionUserId] = useState(() => loadSessionUserId())
-  const [cartsByUser, setCartsByUser] = useState(() => loadCartsByUser())
-  const [orders, setOrders] = useState(() => loadOrders())
+  const [currentUser, setCurrentUser] = useState(null)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [products, setProducts] = useState([])
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true)
 
+  const [cartItems, setCartItems] = useState([])
+  const [cartSubtotal, setCartSubtotal] = useState(0)
+  const [cartItemCount, setCartItemCount] = useState(0)
+  const [isCartLoading, setIsCartLoading] = useState(true)
+
+  const [userOrders, setUserOrders] = useState([])
+
+  // ── Products ──
   useEffect(() => {
-    saveUsers(users)
-  }, [users])
-
-  useEffect(() => {
-    saveSessionUserId(sessionUserId)
-  }, [sessionUserId])
-
-  useEffect(() => {
-    saveCartsByUser(cartsByUser)
-  }, [cartsByUser])
-
-  useEffect(() => {
-    saveOrders(orders)
-  }, [orders])
-
-  const currentUser = useMemo(() => {
-    return users.find((user) => user.id === sessionUserId) ?? null
-  }, [users, sessionUserId])
-
-  const activeCartKey = currentUser?.id ?? GUEST_CART_KEY
-
-  const cartItems = useMemo(() => {
-    return cartsByUser[activeCartKey] ?? []
-  }, [activeCartKey, cartsByUser])
-
-  const cartItemCount = useMemo(() => {
-    return cartItems.reduce((count, item) => count + item.quantity, 0)
-  }, [cartItems])
-
-  const cartSubtotal = useMemo(() => {
-    return computeCartSubtotal(cartItems)
-  }, [cartItems])
-
-  const userOrders = useMemo(() => {
-    if (!currentUser) {
-      return []
-    }
-
-    return orders
-      .filter((order) => order.userId === currentUser.id)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-  }, [orders, currentUser])
-
-  const registerAccount = (values) => {
-    const normalizedEmail = values.email.trim().toLowerCase()
-    const alreadyExists = users.some((user) => user.email === normalizedEmail)
-
-    if (alreadyExists) {
-      return {
-        ok: false,
-        error: 'Email ini sudah terdaftar. Silakan login.',
-      }
-    }
-
-    const account = buildAccount(values)
-    setUsers((previousUsers) => [...previousUsers, account])
-    setSessionUserId(account.id)
-    setCartsByUser((previousCarts) =>
-      mergeGuestCartToUser(previousCarts, account.id),
-    )
-
-    return { ok: true, user: account }
-  }
-
-  const loginAccount = (values) => {
-    const normalizedEmail = values.email.trim().toLowerCase()
-    const matchedUser = users.find(
-      (user) =>
-        user.email === normalizedEmail && user.password === values.password,
-    )
-
-    if (!matchedUser) {
-      return {
-        ok: false,
-        error: 'Email atau password belum sesuai.',
-      }
-    }
-
-    setSessionUserId(matchedUser.id)
-    setCartsByUser((previousCarts) =>
-      mergeGuestCartToUser(previousCarts, matchedUser.id),
-    )
-
-    return { ok: true, user: matchedUser }
-  }
-
-  const logoutAccount = () => {
-    setSessionUserId(null)
-  }
-
-  const addToCart = (payload) => {
-    const customization = resolveCustomization(payload)
-    if (customization.error) {
-      return { ok: false, error: customization.error }
-    }
-
-    const cartItem = buildCartItem({
-      product: customization.product,
-      sizeOption: customization.sizeOption,
-      colorText: payload.colorText ?? '',
-      theme: payload.theme ?? '',
-      message: payload.message ?? '',
-      quantity: payload.quantity,
-    })
-
-    setCartsByUser((previousCarts) => {
-      const userCart = previousCarts[activeCartKey] ?? []
-      return {
-        ...previousCarts,
-        [activeCartKey]: [...userCart, cartItem],
-      }
-    })
-
-    return { ok: true, item: cartItem }
-  }
-
-  const editCartItem = (itemId, payload) => {
-    const currentUserCart = cartsByUser[activeCartKey] ?? []
-    const targetItem = currentUserCart.find((item) => item.id === itemId)
-
-    if (!targetItem) {
-      return { ok: false, error: 'Item keranjang tidak ditemukan.' }
-    }
-
-    const customization = resolveCustomization(payload)
-    if (customization.error) {
-      return { ok: false, error: customization.error }
-    }
-
-    const rebuiltItem = rebuildCartItem(targetItem, {
-      sizeOption: customization.sizeOption,
-      colorText: payload.colorText ?? '',
-      theme: payload.theme ?? '',
-      message: payload.message ?? '',
-      quantity: payload.quantity,
-    })
-
-    setCartsByUser((previousCarts) => {
-      const nextUserCart = (previousCarts[activeCartKey] ?? []).map((item) => {
-        if (item.id !== itemId) {
-          return item
-        }
-
-        return rebuiltItem
+    let cancelled = false
+    fetchProducts()
+      .then((data) => {
+        if (!cancelled) setProducts(data)
       })
-
-      return {
-        ...previousCarts,
-        [activeCartKey]: nextUserCart,
-      }
-    })
-
-    return { ok: true, item: rebuiltItem }
-  }
-
-  const updateCartQuantity = (itemId, quantity) => {
-    setCartsByUser((previousCarts) => {
-      const nextUserCart = (previousCarts[activeCartKey] ?? []).map((item) => {
-        if (item.id !== itemId) {
-          return item
-        }
-
-        return updateCartItemQuantity(item, quantity)
+      .catch(() => {
+        if (!cancelled) setProducts([])
       })
+      .finally(() => {
+        if (!cancelled) setIsLoadingProducts(false)
+      })
+    return () => { cancelled = true }
+  }, [])
 
-      return {
-        ...previousCarts,
-        [activeCartKey]: nextUserCart,
-      }
-    })
-  }
+  // ── Auth restore ──
+  useEffect(() => {
+    let cancelled = false
+    apiGetMe()
+      .then((user) => {
+        if (!cancelled) setCurrentUser(user)
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentUser(null)
+      })
+      .finally(() => {
+        if (!cancelled) setIsAuthLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
 
-  const removeCartItem = (itemId) => {
-    setCartsByUser((previousCarts) => {
-      const nextUserCart = (previousCarts[activeCartKey] ?? []).filter(
-        (item) => item.id !== itemId,
-      )
-
-      return {
-        ...previousCarts,
-        [activeCartKey]: nextUserCart,
-      }
-    })
-  }
-
-  const clearCart = () => {
-    setCartsByUser((previousCarts) => ({
-      ...previousCarts,
-      [activeCartKey]: [],
-    }))
-  }
-
-  const placeOrder = (checkoutPayload) => {
-    if (!cartItems.length) {
-      return { ok: false, error: 'Keranjang masih kosong.' }
+  // ── Cart: sync from backend ──
+  const refreshCart = useCallback(async () => {
+    try {
+      const data = await apiFetchCart()
+      setCartItems(data.items)
+      setCartSubtotal(data.subtotal)
+      setCartItemCount(data.itemCount)
+    } catch {
+      setCartItems([])
+      setCartSubtotal(0)
+      setCartItemCount(0)
     }
+  }, [])
 
-    const order = createOrder({
-      user: currentUser,
-      items: cartItems,
-      checkout: checkoutPayload,
-    })
+  useEffect(() => {
+    let cancelled = false
+    apiFetchCart()
+      .then((data) => {
+        if (!cancelled) {
+          setCartItems(data.items)
+          setCartSubtotal(data.subtotal)
+          setCartItemCount(data.itemCount)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCartItems([])
+          setCartSubtotal(0)
+          setCartItemCount(0)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsCartLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [currentUser])
 
-    setOrders((previousOrders) => [order, ...previousOrders])
-    clearCart()
+  const featuredProducts = useMemo(() => {
+    return getFeaturedProducts(products)
+  }, [products])
 
-    return { ok: true, order }
+  // ── Auth actions ──
+  const registerAccount = async (values) => {
+    const data = await apiRegister(values)
+    setCurrentUser(data.user)
+    return { ok: true, user: data.user }
   }
 
-  const getOrderById = (orderId) => {
-    const targetOrder = orders.find((order) => order.id === orderId)
+  const loginAccount = async (values) => {
+    const data = await apiLogin(values)
+    setCurrentUser(data.user)
+    return { ok: true, user: data.user }
+  }
 
-    if (!targetOrder) {
+  const logoutAccount = async () => {
+    await apiLogout()
+    setCurrentUser(null)
+  }
+
+  // ── Cart actions ──
+  const addToCart = async (payload) => {
+    const data = await apiAddCartItem(payload)
+    await refreshCart()
+    return { ok: true, item: data.item }
+  }
+
+  const editCartItem = async (itemId, payload) => {
+    const data = await apiUpdateCartItem(itemId, payload)
+    await refreshCart()
+    return { ok: true, item: data.item }
+  }
+
+  const updateCartQuantity = async (itemId, quantity) => {
+    await apiUpdateCartItemQuantity(itemId, quantity)
+    await refreshCart()
+  }
+
+  const removeCartItem = async (itemId) => {
+    await apiRemoveCartItem(itemId)
+    await refreshCart()
+  }
+
+  const clearCart = async () => {
+    await apiClearCart()
+    setCartItems([])
+    setCartSubtotal(0)
+    setCartItemCount(0)
+  }
+
+  // ── Order actions ──
+  const placeOrder = async (checkoutPayload) => {
+    const data = await apiPlaceOrder(checkoutPayload)
+    await refreshCart()
+    return { ok: true, order: data.order }
+  }
+
+  const getOrderById = async (orderId) => {
+    try {
+      return await apiFetchOrderById(orderId)
+    } catch {
       return null
     }
-
-    if (currentUser) {
-      return targetOrder.userId === currentUser.id ? targetOrder : null
-    }
-
-    return targetOrder.userId === null ? targetOrder : null
   }
 
-  const markCurrentUserOrderPaid = (orderId) => {
-    let paidOrder = null
-
-    setOrders((previousOrders) => {
-      return previousOrders.map((order) => {
-        const isOrderAccessible = currentUser
-          ? order.userId === currentUser.id
-          : order.userId === null
-
-        if (order.id !== orderId || !isOrderAccessible) {
-          return order
-        }
-
-        paidOrder = markOrderAsPaid(order)
-        return paidOrder
-      })
-    })
-
-    if (!paidOrder) {
-      return { ok: false, error: 'Order tidak ditemukan untuk sesi ini.' }
+  const refreshOrders = async () => {
+    try {
+      const orders = await apiFetchOrders()
+      setUserOrders(orders)
+    } catch {
+      setUserOrders([])
     }
+  }
 
-    return { ok: true, order: paidOrder }
+  const markCurrentUserOrderPaid = async (orderId) => {
+    const data = await apiMarkOrderPaid(orderId)
+    return { ok: true, order: data.order }
   }
 
   const value = {
-    users,
     currentUser,
+    isAuthLoading,
+    products,
+    featuredProducts,
+    isLoadingProducts,
     cartItems,
     cartItemCount,
     cartSubtotal,
+    isCartLoading,
     userOrders,
     registerAccount,
     loginAccount,
@@ -326,6 +202,7 @@ export function AppProvider({ children }) {
     clearCart,
     placeOrder,
     getOrderById,
+    refreshOrders,
     markCurrentUserOrderPaid,
   }
 

@@ -4,9 +4,19 @@ import { useApp } from '../context/useApp.js'
 import { formatRupiah } from '../utils/currency.js'
 
 function CartPage() {
-  const { cartItems, cartSubtotal, updateCartQuantity, removeCartItem } = useApp()
+  const { cartItems, cartSubtotal, isCartLoading, updateCartQuantity, removeCartItem } = useApp()
   const navigate = useNavigate()
   const [fulfillment, setFulfillment] = useState('pickup')
+
+  if (isCartLoading) {
+    return (
+      <section className="stack-gap-lg">
+        <h2>Cart</h2>
+        <div className="skeleton skeleton-text" style={{ width: '40%' }} />
+        <div className="skeleton skeleton-text" style={{ width: '60%' }} />
+      </section>
+    )
+  }
 
   if (!cartItems.length) {
     return (

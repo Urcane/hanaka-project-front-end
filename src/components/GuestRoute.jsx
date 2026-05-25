@@ -2,7 +2,15 @@ import { Navigate } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 
 function GuestRoute({ children }) {
-  const { currentUser } = useApp()
+  const { currentUser, isAuthLoading } = useApp()
+
+  if (isAuthLoading) {
+    return (
+      <section className="panel stack-gap-md" style={{ textAlign: 'center' }}>
+        <p>Memuat...</p>
+      </section>
+    )
+  }
 
   if (currentUser) {
     return <Navigate to="/" replace />

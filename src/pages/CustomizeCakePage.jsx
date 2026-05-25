@@ -4,14 +4,8 @@ import { useApp } from '../context/useApp.js'
 import { validateCustomizationInput } from '../models/cartModel.js'
 import { findProductById, findSizeOption } from '../models/productModel.js'
 import { formatRupiah } from '../utils/currency.js'
+import { resolveProductImage } from '../utils/productImages.js'
 import { hasAnyError } from '../validation/customValidation.js'
-import browniesImg from '../assets/brownies.jpg'
-import strawberryImg from '../assets/strawberry-cake.jpg'
-
-const productImages = {
-  'black-forest': browniesImg,
-  'red-velvet': strawberryImg,
-}
 
 function createInitialForm(product, editingItem) {
   if (!product) {
@@ -43,6 +37,7 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
   )
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const selectedSize =
     findSizeOption(product, formValues.sizeId) ?? product.sizes[0]
@@ -82,7 +77,7 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
     }))
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     setSubmitError('')
 
@@ -90,18 +85,24 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
     setErrors(validationErrors)
     if (hasAnyError(validationErrors)) return
 
-    const result = onSave({
-      productId: product.id,
-      sizeId: formValues.sizeId,
-      colorText: formValues.colorText,
-      theme: formValues.theme,
-      quantity,
-      message: formValues.message,
-    })
-    if (!result.ok) setSubmitError(result.error)
+    setIsSubmitting(true)
+    try {
+      await onSave({
+        productId: product.id,
+        sizeId: formValues.sizeId,
+        colorText: formValues.colorText,
+        theme: formValues.theme,
+        quantity,
+        message: formValues.message,
+      })
+    } catch (err) {
+      setSubmitError(err.message || 'Terjadi kesalahan. Silakan coba lagi.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const heroImg = productImages[product.id]
+  const heroImg = resolveProductImage(product.coverImage)
 
   return (
     <form className="detail-layout" onSubmit={handleSubmit} noValidate>
@@ -178,8 +179,12 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
         </div>
         <span className="detail-total-label">Total</span>
         <span className="detail-total-price">{formatRupiah(dynamicTotal)}</span>
-        <button type="submit" className="detail-add-btn">
-          {isEditingCurrentProduct ? 'Update cart' : 'Add to cart'}
+        <button type="submit" className="detail-add-btn" disabled={isSubmitting}>
+          {isSubmitting
+            ? 'Memproses...'
+            : isEditingCurrentProduct
+              ? 'Update cart'
+              : 'Add to cart'}
         </button>
       </div>
     </form>
@@ -191,15 +196,28 @@ function CustomizeCakePage() {
   const [searchParams] = useSearchParams()
   const editId = searchParams.get('edit')
 
-  const { cartItems, addToCart, editCartItem } = useApp()
+  const { products, isLoadingProducts, cartItems, addToCart, editCartItem } = useApp()
   const navigate = useNavigate()
 
-  const product = useMemo(() => findProductById(productId), [productId])
+  const product = useMemo(
+    () => findProductById(products, productId),
+    [products, productId],
+  )
 
   const editingItem = useMemo(() => {
     if (!editId) return null
     return cartItems.find((item) => item.id === editId) ?? null
   }, [cartItems, editId])
+
+  if (isLoadingProducts) {
+    return (
+      <section className="panel stack-gap-md">
+        <div className="skeleton skeleton-title" />
+        <div className="skeleton skeleton-text" />
+        <div className="skeleton skeleton-text" />
+      </section>
+    )
+  }
 
   if (!product) {
     return (
@@ -214,10 +232,10 @@ function CustomizeCakePage() {
   const isEditingCurrentProduct =
     Boolean(editingItem) && editingItem.productId === product.id
 
-  const handleSave = (payload) => {
+  const handleSave = async (payload) => {
     const result = isEditingCurrentProduct
-      ? editCartItem(editingItem.id, payload)
-      : addToCart(payload)
+      ? await editCartItem(editingItem.id, payload)
+      : await addToCart(payload)
     if (result.ok) navigate('/cart')
     return result
   }

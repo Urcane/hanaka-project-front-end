@@ -1,7 +1,14 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import AdminLayout from './components/AdminLayout.jsx'
+import AdminRoute from './components/AdminRoute.jsx'
 import AppLayout from './components/AppLayout.jsx'
 import GuestRoute from './components/GuestRoute.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import AdminCustomersPage from './pages/admin/AdminCustomersPage.jsx'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage.jsx'
+import AdminOrderDetailPage from './pages/admin/AdminOrderDetailPage.jsx'
+import AdminOrdersPage from './pages/admin/AdminOrdersPage.jsx'
+import AdminProductsPage from './pages/admin/AdminProductsPage.jsx'
 import CartPage from './pages/CartPage.jsx'
 import CheckoutPage from './pages/CheckoutPage.jsx'
 import CustomizeCakePage from './pages/CustomizeCakePage.jsx'
@@ -31,6 +38,22 @@ function App() {
             </ProtectedRoute>
           }
         />
+      </Route>
+
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <AdminLayout />
+          </AdminRoute>
+        }
+      >
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboardPage />} />
+        <Route path="orders" element={<AdminOrdersPage />} />
+        <Route path="orders/:orderId" element={<AdminOrderDetailPage />} />
+        <Route path="products" element={<AdminProductsPage />} />
+        <Route path="customers" element={<AdminCustomersPage />} />
       </Route>
 
       <Route

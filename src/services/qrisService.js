@@ -1,18 +1,7 @@
 import QRCode from 'qrcode'
 
-export function buildQrisPayload(order) {
-  return [
-    'HANAKA-CAKE',
-    `ORDER:${order.orderNumber}`,
-    `TOTAL:${order.totalPrice}`,
-    `NAME:${order.customerName}`,
-  ].join('|')
-}
-
-export async function generateQrisDataUrl(order) {
-  const payload = buildQrisPayload(order)
-
-  return QRCode.toDataURL(payload, {
+export async function generateQrisDataUrl({ qrString }) {
+  return QRCode.toDataURL(qrString, {
     width: 320,
     margin: 1,
     color: {

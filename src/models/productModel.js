@@ -1,15 +1,13 @@
-import { cakeCatalog } from '../data/products.js'
-
-export function getAllProducts() {
-  return cakeCatalog
+export function getAllProducts(products) {
+  return products
 }
 
-export function getFeaturedProducts() {
-  return cakeCatalog.filter((product) => product.featured)
+export function getFeaturedProducts(products) {
+  return products.filter((product) => product.featured)
 }
 
-export function findProductById(productId) {
-  return cakeCatalog.find((product) => product.id === productId) ?? null
+export function findProductById(products, productId) {
+  return products.find((product) => product.id === productId) ?? null
 }
 
 export function findSizeOption(product, sizeId) {

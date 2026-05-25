@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
+import { apiCreateQrisPayment } from '../services/paymentApi.js'
 import { generateQrisDataUrl } from '../services/qrisService.js'
 
 function PaymentQrisPage() {
@@ -8,37 +9,54 @@ function PaymentQrisPage() {
   const navigate = useNavigate()
   const { currentUser, getOrderById, markCurrentUserOrderPaid } = useApp()
 
-  const order = getOrderById(orderId)
+  const [order, setOrder] = useState(null)
+  const [isOrderLoading, setIsOrderLoading] = useState(true)
+  const [qrImage, setQrImage] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [isPaying, setIsPaying] = useState(false)
 
-  const [qrState, setQrState] = useState({
-    orderId: null,
-    image: '',
-    error: '',
-  })
+  useEffect(() => {
+    let cancelled = false
+    setIsOrderLoading(true)
+    getOrderById(orderId)
+      .then((data) => {
+        if (!cancelled) setOrder(data)
+      })
+      .finally(() => {
+        if (!cancelled) setIsOrderLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [orderId, getOrderById])
 
   useEffect(() => {
     if (!order || order.paymentMethod !== 'qris') return
 
-    let isMounted = true
+    let cancelled = false
 
-    generateQrisDataUrl(order)
-      .then((qrDataUrl) => {
-        if (!isMounted) return
-        setQrState({ orderId: order.id, image: qrDataUrl, error: '' })
+    apiCreateQrisPayment(order.id)
+      .then((payment) => {
+        if (cancelled) return
+        return generateQrisDataUrl({ qrString: payment.qrString })
+      })
+      .then((dataUrl) => {
+        if (!cancelled && dataUrl) setQrImage(dataUrl)
       })
       .catch(() => {
-        if (!isMounted) return
-        setQrState({
-          orderId: order.id,
-          image: '',
-          error: 'QR gagal dibuat. Silakan refresh halaman.',
-        })
+        if (!cancelled) {
+          setLoadError('QR gagal dibuat. Silakan refresh halaman.')
+        }
       })
 
-    return () => {
-      isMounted = false
-    }
+    return () => { cancelled = true }
   }, [order])
+
+  if (isOrderLoading) {
+    return (
+      <section className="panel stack-gap-md" style={{ textAlign: 'center' }}>
+        <p>Memuat order...</p>
+      </section>
+    )
+  }
 
   if (!order) {
     return (
@@ -56,16 +74,21 @@ function PaymentQrisPage() {
     return <Navigate to="/orders" replace />
   }
 
-  const qrImage = qrState.orderId === order.id ? qrState.image : ''
-  const loadError = qrState.orderId === order.id ? qrState.error : ''
   const isLoading = !qrImage && !loadError
 
-  const handlePaid = () => {
-    markCurrentUserOrderPaid(order.id)
-    if (currentUser) {
-      navigate('/orders')
-    } else {
-      navigate('/')
+  const handlePaid = async () => {
+    setIsPaying(true)
+    try {
+      await markCurrentUserOrderPaid(order.id)
+      if (currentUser) {
+        navigate('/orders')
+      } else {
+        navigate('/')
+      }
+    } catch {
+      setLoadError('Gagal mengkonfirmasi pembayaran. Silakan coba lagi.')
+    } finally {
+      setIsPaying(false)
     }
   }
 
@@ -82,8 +105,13 @@ function PaymentQrisPage() {
         )}
       </article>
 
-      <button type="button" className="place-order-btn" onClick={handlePaid}>
-        Place my order
+      <button
+        type="button"
+        className="place-order-btn"
+        onClick={handlePaid}
+        disabled={isPaying}
+      >
+        {isPaying ? 'Memproses...' : 'Place my order'}
       </button>
     </section>
   )

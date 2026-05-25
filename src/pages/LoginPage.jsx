@@ -13,6 +13,7 @@ function LoginPage() {
   const [formValues, setFormValues] = useState(initialForm)
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { loginAccount } = useApp()
   const location = useLocation()
@@ -36,7 +37,7 @@ function LoginPage() {
     })
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     setSubmitError('')
 
@@ -47,14 +48,26 @@ function LoginPage() {
       return
     }
 
-    const result = loginAccount(formValues)
-    if (!result.ok) {
-      setSubmitError(result.error)
-      return
+    setIsSubmitting(true)
+    try {
+      const result = await loginAccount(formValues)
+      if (result.user.role === 'admin') {
+        navigate('/admin/dashboard', { replace: true })
+      } else {
+        const redirectTo = location.state?.redirectTo ?? '/'
+        navigate(redirectTo, { replace: true })
+      }
+    } catch (err) {
+      if (err.status === 401) {
+        setSubmitError('Email atau password belum sesuai.')
+      } else if (err.status === 400 && err.errors) {
+        setErrors(err.errors)
+      } else {
+        setSubmitError(err.message || 'Terjadi kesalahan. Silakan coba lagi.')
+      }
+    } finally {
+      setIsSubmitting(false)
     }
-
-    const redirectTo = location.state?.redirectTo ?? '/'
-    navigate(redirectTo, { replace: true })
   }
 
   return (
@@ -97,8 +110,8 @@ function LoginPage() {
 
           {submitError && <p className="submit-error">{submitError}</p>}
 
-          <button type="submit" className="primary-button">
-            Login
+          <button type="submit" className="primary-button" disabled={isSubmitting}>
+            {isSubmitting ? 'Memproses...' : 'Login'}
           </button>
         </form>
 

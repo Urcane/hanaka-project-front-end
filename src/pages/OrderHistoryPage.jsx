@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 import { formatRupiah } from '../utils/currency.js'
@@ -15,7 +16,22 @@ function getPaymentLabel(order) {
 }
 
 function OrderHistoryPage() {
-  const { userOrders } = useApp()
+  const { refreshOrders, userOrders } = useApp()
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    refreshOrders().finally(() => setIsLoading(false))
+  }, [refreshOrders])
+
+  if (isLoading) {
+    return (
+      <section className="stack-gap-lg">
+        <h2>Order History</h2>
+        <div className="skeleton skeleton-text" style={{ width: '50%' }} />
+        <div className="skeleton skeleton-text" style={{ width: '70%' }} />
+      </section>
+    )
+  }
 
   if (!userOrders.length) {
     return (
