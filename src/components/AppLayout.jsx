@@ -52,6 +52,11 @@ function AppLayout() {
         </nav>
 
         <div className="header-tools">
+          {currentUser?.role === 'admin' && (
+            <Link to="/admin/dashboard" className="ghost-button">
+              Admin Panel
+            </Link>
+          )}
           <Link to="/cart" className="cart-icon-link" aria-label="Keranjang">
             <svg
               width="22"

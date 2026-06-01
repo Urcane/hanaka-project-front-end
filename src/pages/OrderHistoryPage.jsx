@@ -79,7 +79,7 @@ function OrderHistoryPage() {
               {order.items.map((item) => (
                 <div key={item.id} className="history-item-row">
                   <p>
-                    {item.productName} - {item.size.label} ({item.quantity} pcs)
+                    {item.productName} - {item.sizeLabel} ({item.quantity} pcs)
                   </p>
                   <p>{formatRupiah(item.totalPrice)}</p>
                 </div>

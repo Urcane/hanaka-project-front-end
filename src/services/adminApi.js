@@ -1,4 +1,4 @@
-import { api } from './apiService.js'
+import { api, apiUpload } from './apiService.js'
 
 export async function fetchDashboard() {
   const data = await api.get('/admin/dashboard')
@@ -79,4 +79,11 @@ export async function deleteProductSize(productId, sizeId) {
   await api.delete(
     `/admin/products/${encodeURIComponent(productId)}/sizes/${encodeURIComponent(sizeId)}`,
   )
+}
+
+export async function uploadProductImage(productId, file) {
+  const formData = new FormData()
+  formData.append('image', file)
+  const data = await apiUpload(`/admin/products/${encodeURIComponent(productId)}/image`, formData)
+  return data.product
 }

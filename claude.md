@@ -1,20 +1,20 @@
-# Hanaka Cake — AI Assistant Context
+# Hanaka Cake — AI Assistant Context (Frontend)
 
-> Dokumen ini adalah referensi utama bagi AI assistant (Claude, Copilot, dsb.) yang bekerja di repository Hanaka Cake.
-> Berisi ringkasan arsitektur, konvensi kode, business logic, dan instruksi penting agar setiap sesi bisa langsung produktif tanpa harus membaca ulang seluruh codebase.
+> Dokumen ini adalah referensi utama bagi AI assistant yang bekerja di repository **frontend** Hanaka Cake.
+> Terakhir update: 2026-06-01
 
 ---
 
 ## 1. Ringkasan Project
 
-**Hanaka Cake** adalah aplikasi web pemesanan kue custom untuk toko kue "Hanaka Cake" yang berlokasi di Balikpapan, Kalimantan Timur. Saat ini terdiri dari **frontend React** dengan rencana integrasi **backend Slim PHP + MySQL**.
+**Hanaka Cake** adalah aplikasi web e-commerce kue custom untuk toko kue di Balikpapan, Kalimantan Timur. Frontend React sudah **fully integrated** dengan backend Slim PHP + MySQL.
 
 | Aspek | Detail |
 |---|---|
 | Nama produk | Hanaka Cake |
 | Jenis | E-commerce kue custom (cake ordering) |
-| Bahasa utama | Bahasa Indonesia (UI & validasi), kode ditulis dalam Bahasa Inggris |
-| Target user | Customer toko kue (retail, B2C) |
+| Bahasa utama | Bahasa Indonesia (UI & validasi), kode dalam Bahasa Inggris |
+| Target user | Customer retail (B2C) + Admin toko |
 | Lokasi toko | Jl. DR. Sukono Rt 09 No 11, Karang Rejo, Balikpapan Kota, Kaltim 76124 |
 | Jam operasional | 07.00 AM – 11.00 PM WITA |
 
@@ -22,20 +22,19 @@
 
 ## 2. Tech Stack
 
-### Frontend (Aktif)
+### Frontend (Repo ini)
 - **React 19** dengan React Compiler (via `babel-plugin-react-compiler`)
-- **Vite 8** sebagai build tool + dev server
+- **Vite 8** — build tool + dev server (localhost:5173)
 - **React Router DOM v7** — client-side routing
-- **qrcode** (npm) — generate QR code QRIS sebagai data URL
-- **LocalStorage** — persistensi data sementara (user, cart, orders)
+- **qrcode** (npm) — render EMV QR string dari Midtrans ke PNG
 - **ESLint 9** — flat config, react-hooks + react-refresh plugin
-- **CSS murni** — tanpa CSS framework, menggunakan Google Fonts (Fraunces + Manrope)
+- **CSS murni** — Google Fonts (Fraunces + Manrope), tanpa CSS framework
 
-### Backend (Direncanakan)
-- **Slim PHP 4** — REST API framework
-- **MySQL 8** — database relasional
-- **JWT / session-based auth** — autentikasi
-- **Midtrans / Xendit** — payment gateway QRIS (menggantikan simulasi QR saat ini)
+### Backend (Repo terpisah: hanaka-project-back-end)
+- **Slim PHP 4** — REST API (localhost:8080)
+- **MySQL 8** — database
+- **JWT** — autentikasi (token di localStorage)
+- **Midtrans Core API** — QRIS payment (sandbox aktif)
 
 ---
 
@@ -43,233 +42,226 @@
 
 ```
 src/
-├── assets/              # Gambar statis (logo, hero banner, foto produk)
-├── components/          # Komponen reusable (layout, route guard)
-│   ├── AppLayout.jsx    # Shell utama: header + nav + outlet + footer
-│   ├── GuestRoute.jsx   # Redirect ke / jika sudah login
-│   ├── ProtectedRoute.jsx # Redirect ke /login jika belum login
-│   └── SiteFooter.jsx   # Footer dengan info toko
-├── context/             # React Context (global state)
-│   ├── AppContext.jsx   # Provider — semua state & actions
-│   ├── appContextObject.js  # createContext (dipisah utk ESLint react-refresh)
-│   └── useApp.js        # Custom hook akses context
-├── data/                # Data statis / katalog
-│   └── products.js      # Katalog cake, ukuran, info toko
+├── assets/              # Gambar statis (logo, hero, foto produk)
+├── components/          # Reusable components
+│   ├── AppLayout.jsx    # Shell customer (header + nav + footer)
+│   ├── AdminLayout.jsx  # Shell admin
+│   ├── AdminRoute.jsx   # Guard: hanya admin
+│   ├── GuestRoute.jsx   # Guard: redirect ke / jika sudah login
+│   └── ProtectedRoute.jsx # Guard: redirect ke /login jika belum login
+├── context/             # React Context (global state dari API)
+│   ├── AppContext.jsx   # Provider — state + actions
+│   ├── appContextObject.js  # createContext (dipisah — ESLint react-refresh)
+│   └── useApp.js        # Custom hook
+├── data/
+│   └── products.js      # ⚠ Legacy — tidak dipakai, data dari API
 ├── models/              # Business logic murni (tanpa React)
-│   ├── authModel.js     # Validasi & build account
-│   ├── cartModel.js     # Validasi customization, build/rebuild cart item
-│   ├── checkoutModel.js # Validasi checkout, build payload
-│   ├── orderModel.js    # Create order, mark as paid
-│   └── productModel.js  # Query produk, hitung harga
-├── pages/               # Route-level page components
-│   ├── HomePage.jsx     # Landing page + best seller
-│   ├── MenuPage.jsx     # Katalog semua varian cake
-│   ├── CustomizeCakePage.jsx  # Form kustomisasi cake
-│   ├── CartPage.jsx     # Keranjang belanja
-│   ├── CheckoutPage.jsx # Form checkout (pickup/delivery, payment)
-│   ├── PaymentQrisPage.jsx   # Halaman QRIS payment
-│   ├── OrderHistoryPage.jsx  # Riwayat order (protected)
-│   ├── LoginPage.jsx    # Login customer
-│   └── RegisterPage.jsx # Registrasi customer
-├── services/            # Abstraksi I/O
-│   ├── storageService.js    # localStorage read/write
-│   └── qrisService.js      # Generate QR code data URL
+│   ├── authModel.js     # Validasi form login/register (client-side)
+│   ├── cartModel.js     # computeCartSubtotal
+│   ├── checkoutModel.js # validateCheckoutInput, PAYMENT_METHODS
+│   ├── orderModel.js    # ⚠ Legacy
+│   └── productModel.js  # getFeaturedProducts, filter
+├── pages/               # Page-level components
+│   ├── HomePage.jsx
+│   ├── MenuPage.jsx
+│   ├── CustomizeCakePage.jsx
+│   ├── CartPage.jsx
+│   ├── CheckoutPage.jsx
+│   ├── PaymentQrisPage.jsx   # Real Midtrans QR + countdown + polling
+│   ├── OrderHistoryPage.jsx
+│   ├── LoginPage.jsx
+│   ├── RegisterPage.jsx
+│   └── admin/
+│       ├── AdminDashboardPage.jsx
+│       ├── AdminOrdersPage.jsx
+│       ├── AdminOrderDetailPage.jsx
+│       ├── AdminProductsPage.jsx
+│       └── AdminCustomersPage.jsx
+├── services/            # Semua API call ke backend
+│   ├── apiService.js    # Base fetch wrapper (JWT + session token + ngrok header)
+│   ├── authApi.js       # /auth/*
+│   ├── cartApi.js       # /cart/*
+│   ├── ordersApi.js     # /orders/*
+│   ├── paymentApi.js    # /payments/qris + /payments/qris/status
+│   ├── productsApi.js   # /products/*
+│   ├── adminApi.js      # /admin/*
+│   └── qrisService.js   # Render EMV qrString → PNG (npm qrcode, bukan API call)
 ├── styles/
-│   └── app.css          # Stylesheet utama (semua komponen)
-├── utils/               # Helper functions
-│   ├── currency.js      # formatRupiah() — Intl.NumberFormat
-│   └── id.js            # createId(), createOrderNumber()
+│   ├── app.css          # Stylesheet customer
+│   └── admin.css        # Stylesheet admin
+├── utils/
+│   ├── currency.js      # formatRupiah()
+│   ├── id.js            # createId(), createOrderNumber()
+│   └── productImages.js # Mapping productId → imported image asset
 ├── validation/
-│   └── customValidation.js  # Validation framework custom
+│   └── customValidation.js  # Custom validation framework (no library)
 ├── index.css            # CSS variables & body styles
-├── main.jsx             # Entry point (BrowserRouter + AppProvider)
-└── App.jsx              # Route definitions
+├── main.jsx             # Entry point
+└── App.jsx              # Route definitions (customer + admin)
 ```
 
 ---
 
 ## 4. Routing
 
-| Path | Komponen | Guard | Keterangan |
-|---|---|---|---|
-| `/` | HomePage | — | Landing page |
-| `/home` | → redirect `/` | — | Alias |
-| `/menu` | MenuPage | — | Katalog cake |
-| `/menu/:productId` | CustomizeCakePage | — | Kustomisasi cake + edit cart item |
-| `/cart` | CartPage | — | Keranjang |
-| `/checkout` | CheckoutPage | — | Form checkout (query `?mode=pickup\|delivery`) |
-| `/payment/:orderId` | PaymentQrisPage | — | QRIS payment |
-| `/orders` | OrderHistoryPage | ProtectedRoute | Riwayat order (harus login) |
-| `/login` | LoginPage | GuestRoute | Login (redirect jika sudah login) |
-| `/register` | RegisterPage | GuestRoute | Register |
-| `*` | → redirect `/` | — | Catch-all |
+### Customer Routes
+
+| Path | Komponen | Guard |
+|---|---|---|
+| `/` | HomePage | — |
+| `/menu` | MenuPage | — |
+| `/menu/:productId` | CustomizeCakePage | — |
+| `/cart` | CartPage | — |
+| `/checkout` | CheckoutPage | — |
+| `/payment/:orderId` | PaymentQrisPage | — |
+| `/orders` | OrderHistoryPage | ProtectedRoute |
+| `/login` | LoginPage | GuestRoute |
+| `/register` | RegisterPage | GuestRoute |
+| `*` | → redirect `/` | — |
+
+### Admin Routes
+
+| Path | Komponen | Guard |
+|---|---|---|
+| `/admin/dashboard` | AdminDashboardPage | AdminRoute |
+| `/admin/orders` | AdminOrdersPage | AdminRoute |
+| `/admin/orders/:id` | AdminOrderDetailPage | AdminRoute |
+| `/admin/products` | AdminProductsPage | AdminRoute |
+| `/admin/customers` | AdminCustomersPage | AdminRoute |
 
 ---
 
 ## 5. Business Logic & Data Flow
 
-### 5.1 Autentikasi
-- **Registrasi**: fullName, email, phone, password, confirmPassword → validasi → `buildAccount()` → simpan ke users array di localStorage.
-- **Login**: email + password → cari di users array → set sessionUserId.
-- **Logout**: set sessionUserId = null.
-- Password disimpan **plain text** di localStorage (simulasi — harus di-hash di backend nanti).
-- Saat login/register, **guest cart di-merge** ke user cart.
+### 5.1 Autentikasi (JWT)
+- Register/Login → `POST /api/auth/register` atau `/login` → JWT di localStorage (`hanaka_auth_token`)
+- Auth restore on mount: `GET /api/auth/me`
+- Logout: hapus token dari localStorage
+- `role: 'admin'` → redirect ke `/admin/dashboard`
+- Guest cart pakai `X-Session-Token` header (localStorage `hanaka_session_token`)
+- Login/register → backend auto-merge guest cart ke user cart
 
 ### 5.2 Produk & Katalog
-- 5 varian cake: Black Forest, Red Velvet, Vanila, Lemon, Rainbow.
-- 4 ukuran standar: 16cm (Rp120.000), 18cm (Rp170.000), 20cm (Rp220.000), 22cm (Rp270.000).
-- Hanya Black Forest dan Red Velvet yang punya foto; sisanya pakai `coverGradient` CSS.
-- `featured: true` → tampil di Best Seller (HomePage).
-- Max message length: 60 karakter per produk.
+- Data dari `GET /api/products` — bukan lagi hardcoded
+- 5 varian: Black Forest, Red Velvet, Vanila, Lemon, Rainbow
+- 4 ukuran per produk (size ID format: `size-16-bf`, `size-18-rv`, dll)
+- `coverImage` = string filename → di-map ke static asset via `productImages.js`
 
 ### 5.3 Cart
-- Cart per-user (key: userId atau `__guest__`).
-- Setiap cart item: productId, size, colorText, theme, message, quantity (1-5).
-- Edit cart item → redirect ke `/menu/:productId?edit=:cartItemId`.
-- Harga: `unitPrice × quantity`.
+- Semua CRUD via API (`/api/cart/*`)
+- State di context: `cartItems`, `cartSubtotal`, `cartItemCount`
+- Guest: diidentifikasi via `X-Session-Token` (header otomatis dari `apiService.js`)
+- Quantity: 1–5 per item
 
 ### 5.4 Checkout
-- Pickup (ambil di toko) atau Delivery.
-- Data: nama, telepon, tanggal/jam pengambilan (pickup) atau alamat (delivery).
-- Metode bayar: Cash atau QRIS.
-- Guest checkout diizinkan (tanpa login).
+- `POST /api/orders` — backend ambil cart dari DB via JWT/session token
+- QRIS → navigate ke `/payment/:orderId`
+- Cash + login → navigate ke `/orders`
+- Cash + guest → success inline
 
-### 5.5 Order
-- Format order number: `HNK-YYYYMMDD-HHMMSS-XXX`.
-- Status: `menunggu konfirmasi` → `diproses` (setelah bayar QRIS).
-- QRIS: generate QR code berisi payload `HANAKA-CAKE|ORDER:xxx|TOTAL:xxx|NAME:xxx`.
-- Setelah place order, cart di-clear.
+### 5.5 QRIS Payment (Midtrans)
+- `POST /api/payments/qris` → backend charge Midtrans → dapat `qrString` (EMV)
+- `qrisService.js` encode EMV string ke PNG via npm `qrcode`
+- Frontend polling `GET /api/payments/qris/status` tiap 5 detik
+- Midtrans webhook → backend update DB → polling detect `paid` → redirect
+- Countdown dari `expiresAt` (ISO-8601 UTC) — `new Date(expiresAt)` selalu benar
 
-### 5.6 Persistensi
-- Semua data disimpan di `localStorage` dengan prefix `hanaka_*_v1`.
-- Keys: `hanaka_users_v1`, `hanaka_session_user_v1`, `hanaka_carts_by_user_v1`, `hanaka_orders_v1`.
+### 5.6 Admin
+- Login sebagai admin → `role: 'admin'` → `AdminRoute` mengizinkan akses
+- Akun default dev: `admin@hanakacake.com` / `Admin12345`
 
 ---
 
-## 6. Validasi
+## 6. Validasi (Client-side)
 
-Sistem validasi custom di `src/validation/customValidation.js`:
+File: `src/validation/customValidation.js`
 
-- **Schema-based**: setiap field punya array validator.
-- **Validators**: `required`, `email`, `phoneId`, `minLength`, `maxLength`, `oneOf`, `numeric`, `minNumber`, `maxNumber`, `strongPassword`, `sameAs`.
-- **Conditional**: `when(predicate, validator)` — validasi berjalan hanya jika kondisi terpenuhi.
-- **Output**: object `{ fieldName: errorMessage }`, cek via `hasAnyError()`.
+- **Schema-based**: `validateSchema(schema, values)` → `{ fieldName: errorMessage }`
+- **Validators**: `required`, `email`, `phoneId`, `minLength`, `maxLength`, `oneOf`, `numeric`, `minNumber`, `maxNumber`, `strongPassword`, `sameAs`
+- **Conditional**: `when(predicate, validator)`
+- **Cek**: `hasAnyError(errors)` → boolean
 
 ---
 
 ## 7. Konvensi Kode
 
-### Penamaan
-- Komponen React: **PascalCase** (`CartPage.jsx`, `AppLayout.jsx`)
-- Non-komponen: **camelCase** (`authModel.js`, `storageService.js`)
-- CSS class: **kebab-case** (`cart-table-row`, `is-active`, `primary-button`)
+- Komponen React: **PascalCase** (`CartPage.jsx`)
+- Non-komponen: **camelCase** (`authModel.js`, `apiService.js`)
+- CSS class: **kebab-case** (`cart-table-row`, `is-active`)
 - ID prefix: `usr_`, `cart_`, `ord_`
-
-### Pola Kode
-- **Model layer terpisah**: Business logic di `src/models/`, bukan di komponen.
-- **Context split**: `appContextObject.js` (createContext) + `useApp.js` (hook) + `AppContext.jsx` (provider) — untuk mematuhi `react-refresh/only-export-components`.
-- **Immutable state updates**: Selalu spread operator, tidak pernah mutasi langsung.
-- **Controlled forms**: Setiap form pakai `useState` + `handleChange` pattern.
-- **Validasi di submit**: `validateSchema()` → set errors → cek `hasAnyError()`.
-
-### CSS
-- Tanpa framework CSS. Semua di `src/styles/app.css` dan `src/index.css`.
-- CSS custom properties (variables) untuk warna dan radius.
-- Google Fonts: Fraunces (heading) + Manrope (body).
-- Responsive via `@media (max-width: 900px)`.
-
-### Build
-- Vite 8 dengan `@vitejs/plugin-react` + `@rolldown/plugin-babel` untuk React Compiler.
-- ESLint flat config (`eslint.config.js`), rule `no-unused-vars` mengabaikan `^[A-Z_]`.
+- **Jangan ubah context split 3 file** — wajib untuk ESLint react-refresh
+- Pesan error/UI: **Bahasa Indonesia**
+- Kode (variabel, fungsi, komentar): **Bahasa Inggris**
 
 ---
 
 ## 8. Catatan Penting untuk AI Assistant
 
-1. **Jangan ubah struktur context split** (3 file terpisah) — ini wajib untuk ESLint react-refresh.
-2. **Password masih plain text** di localStorage — ini sengaja untuk MVP. Backend nanti harus hash dengan bcrypt.
-3. **QRIS bukan real payment** — saat ini hanya generate QR dari string, bukan integrasi payment gateway.
-4. **Data produk hardcoded** di `src/data/products.js` — nanti akan dipindah ke database.
-5. **Pesan error/UI dalam Bahasa Indonesia** — pertahankan konsistensi bahasa untuk user-facing text.
-6. **Kode ditulis dalam Bahasa Inggris** — variable, function, comment dalam English.
-7. **Tidak pakai TypeScript** — project ini pure JavaScript + JSX.
-8. **React 19 + React Compiler aktif** — pastikan kode compatible.
+1. **Context split 3 file** (`appContextObject.js`, `useApp.js`, `AppContext.jsx`) — JANGAN digabung, wajib untuk ESLint react-refresh.
+2. **QRIS sudah real Midtrans** — `qrString` adalah EMV QRIS string, bukan simulasi. Jangan ubah `qrisService.js` untuk format lain.
+3. **Sumber kebenaran CORS di backend ada di `ResponseEmitter.php`** — bukan `CorsMiddleware`. Jika ada header baru yang perlu diizinkan, tambah di kedua tempat.
+4. **`ngrok-skip-browser-warning: true`** sudah di-set di `apiService.js` — jangan hapus.
+5. **Tidak pakai TypeScript** — pure JavaScript + JSX.
+6. **React 19 + React Compiler aktif** — kode harus compatible (no side effects in render).
+7. **`data/products.js` sudah legacy** — data produk dari API, bukan dari file ini.
+8. **Backend repo**: `../hanaka-project-back-end` — baca context di sana untuk implementasi backend.
 
 ---
 
-## 9. Rencana Integrasi Backend
+## 9. Dev Setup
 
-Saat ini semua data disimpan di localStorage. Rencana migrasi ke backend:
+```bash
+# Frontend
+npm install
+npm run dev     # localhost:5173
 
-| Frontend (sekarang) | Backend (target) |
-|---|---|
-| `storageService.js` → localStorage | REST API call via `fetch()` |
-| `authModel.buildAccount()` | `POST /api/auth/register` |
-| `authModel.validateLoginInput()` | `POST /api/auth/login` → JWT |
-| `cartModel.buildCartItem()` | `POST /api/cart` |
-| `orderModel.createOrder()` | `POST /api/orders` |
-| `qrisService.generateQrisDataUrl()` | `POST /api/payments/qris` → real payment gateway |
-| `products.js` hardcoded | `GET /api/products` dari MySQL |
+# Backend (repo terpisah)
+cd ../hanaka-project-back-end
+composer start  # localhost:8080
+php database/migrate.php --seed  # sekali saja
+```
+
+```env
+# .env
+VITE_API_URL=http://localhost:8080/api
+```
 
 ---
 
-## 10. Development History / Changelog
+## 10. Changelog
 
 ### Fase 1 — Frontend MVP (Mei 2026)
-- Setup project React 19 + Vite 8 dengan React Compiler
-- Implementasi sistem autentikasi (login/register) dengan localStorage
-- Halaman Home dengan hero banner dan best seller section
-- Katalog menu cake dengan 5 varian dan 4 ukuran
-- Halaman kustomisasi cake (ukuran, warna, tema, catatan, quantity)
-- Keranjang belanja dengan edit, hapus, update quantity
-- Checkout flow (pickup/delivery, data customer, payment method)
-- Simulasi QRIS payment dengan QR code generator
-- Order history page (protected route)
-- Custom validation framework (tanpa library eksternal)
-- Responsive design untuk mobile
-- Guest checkout support dengan cart merging saat login
-- ESLint configuration dengan react-refresh compliance
+- Setup React 19 + Vite 8 + React Compiler
+- Auth sistem (localStorage — legacy)
+- HomePage, MenuPage, CustomizeCakePage, CartPage
+- Checkout (pickup/delivery, cash/qris)
+- Simulasi QRIS payment (string lokal)
+- OrderHistoryPage, custom validation framework
+- Responsive design, guest checkout
 
-### Fase 2 — Backend Integration (Planned)
-- Setup Slim PHP 4 + MySQL 8
-- REST API endpoints untuk auth, products, cart, orders, payments
-- JWT authentication
-- Password hashing (bcrypt)
-- Real QRIS payment gateway integration (Midtrans/Xendit)
-- Admin dashboard untuk manajemen pesanan
-- Image upload untuk produk cake
-- Email/WhatsApp notification untuk order status
+### Fase 2 — Backend Integration (Mei–Juni 2026)
+- Semua data localStorage → backend API
+- JWT auth (register, login, logout, me, restore on mount)
+- Cart CRUD via API + guest session token + merge
+- Order via API
+- Admin dashboard (orders, products, customers)
+- Admin pages + AdminRoute + AdminLayout
+
+### Fase 3 — Midtrans QRIS + CORS Fix (Juni 2026)
+- `paymentApi.js`: `apiCreateQrisPayment` + `apiCheckQrisStatus`
+- `PaymentQrisPage.jsx`: real QR, countdown, polling 5 detik, auto-redirect
+- `apiService.js`: header `ngrok-skip-browser-warning`
+- Backend: MidtransService, GenerateQrisAction, PaymentStatusAction, PaymentWebhookAction
+- CORS fix: `ResponseEmitter.php` tambah `ngrok-skip-browser-warning`
 
 ---
 
 ## 11. Quick Commands
 
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Lint check
-npm run lint
+npm install        # Install dependencies
+npm run dev        # Dev server → localhost:5173
+npm run build      # Production build → dist/
+npm run preview    # Preview production build
+npm run lint       # ESLint check
 ```
-
----
-
-## 12. Assets
-
-| File | Digunakan di | Keterangan |
-|---|---|---|
-| `logo.png` | AppLayout (header) | Logo toko di navbar |
-| `big-hero.png` | HomePage | Banner utama landing page |
-| `hero.png` | MenuPage | Background transparan di menu hero |
-| `brownies.jpg` | HomePage, MenuPage, CustomizeCakePage | Foto Black Forest Cake |
-| `strawberry-cake.jpg` | HomePage, MenuPage, CustomizeCakePage | Foto Red Velvet Cake |
-| `vite.svg`, `react.svg` | — | Default Vite assets (tidak dipakai) |

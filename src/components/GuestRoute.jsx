@@ -13,6 +13,9 @@ function GuestRoute({ children }) {
   }
 
   if (currentUser) {
+    if (currentUser.role === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />
+    }
     return <Navigate to="/" replace />
   }
 
