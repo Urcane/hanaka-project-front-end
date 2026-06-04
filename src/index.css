@@ -1,6 +1,8 @@
 :root {
   /* --bg-cream: #fff8ee;
   --bg-blush: #ffe3cf; */
+  --bg-cream: #fff8ee;
+  --bg-blush: #ffe3cf;
   --surface: rgba(255, 255, 255, 0.82);
   --ink: #35241a;
   --muted: #6e5646;
