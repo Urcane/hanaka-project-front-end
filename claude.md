@@ -44,10 +44,8 @@
 src/
 ├── assets/              # Gambar statis (logo, hero, foto produk)
 ├── components/          # Reusable components
-│   ├── AppLayout.jsx    # Shell customer (header + nav + footer)
-│   ├── AdminLayout.jsx  # Shell admin
-│   ├── AdminRoute.jsx   # Guard: hanya admin
-│   ├── GuestRoute.jsx   # Guard: redirect ke / jika sudah login
+│   ├── AppLayout.jsx    # Shell customer (header + nav + footer + link Admin Panel)
+│   ├── GuestRoute.jsx   # Guard: redirect / (customer) atau handoff ke admin backend
 │   └── ProtectedRoute.jsx # Guard: redirect ke /login jika belum login
 ├── context/             # React Context (global state dari API)
 │   ├── AppContext.jsx   # Provider — state + actions
@@ -69,14 +67,9 @@ src/
 │   ├── CheckoutPage.jsx
 │   ├── PaymentQrisPage.jsx   # Real Midtrans QR + countdown + polling
 │   ├── OrderHistoryPage.jsx
-│   ├── LoginPage.jsx
-│   ├── RegisterPage.jsx
-│   └── admin/
-│       ├── AdminDashboardPage.jsx
-│       ├── AdminOrdersPage.jsx
-│       ├── AdminOrderDetailPage.jsx
-│       ├── AdminProductsPage.jsx
-│       └── AdminCustomersPage.jsx
+│   ├── LoginPage.jsx        # ⚠ Admin login → handoff ke backend (lihat 5.6)
+│   └── RegisterPage.jsx
+│   # ⚠ Halaman admin PINDAH ke backend (server-rendered PHP) — lihat 5.6
 ├── services/            # Semua API call ke backend
 │   ├── apiService.js    # Base fetch wrapper (JWT + session token + ngrok header)
 │   ├── authApi.js       # /auth/*
@@ -84,20 +77,19 @@ src/
 │   ├── ordersApi.js     # /orders/*
 │   ├── paymentApi.js    # /payments/qris + /payments/qris/status
 │   ├── productsApi.js   # /products/*
-│   ├── adminApi.js      # /admin/*
 │   └── qrisService.js   # Render EMV qrString → PNG (npm qrcode, bukan API call)
 ├── styles/
-│   ├── app.css          # Stylesheet customer
-│   └── admin.css        # Stylesheet admin
+│   └── app.css          # Stylesheet customer (admin.css pindah ke backend)
 ├── utils/
 │   ├── currency.js      # formatRupiah()
 │   ├── id.js            # createId(), createOrderNumber()
+│   ├── adminHandoff.js  # getAdminHandoffUrl()/goToAdminPanel() → redirect admin ke backend
 │   └── productImages.js # Mapping productId → imported image asset
 ├── validation/
 │   └── customValidation.js  # Custom validation framework (no library)
 ├── index.css            # CSS variables & body styles
 ├── main.jsx             # Entry point
-└── App.jsx              # Route definitions (customer + admin)
+└── App.jsx              # Route definitions (customer only — admin di backend)
 ```
 
 ---
@@ -121,13 +113,10 @@ src/
 
 ### Admin Routes
 
-| Path | Komponen | Guard |
-|---|---|---|
-| `/admin/dashboard` | AdminDashboardPage | AdminRoute |
-| `/admin/orders` | AdminOrdersPage | AdminRoute |
-| `/admin/orders/:id` | AdminOrderDetailPage | AdminRoute |
-| `/admin/products` | AdminProductsPage | AdminRoute |
-| `/admin/customers` | AdminCustomersPage | AdminRoute |
+⚠ **Tidak ada lagi route admin di frontend.** Seluruh halaman admin
+(`/admin/*`) sekarang **dirender di backend** (PHP Slim, server-rendered).
+Frontend hanya menangani **login** lalu menyerahkan JWT ke backend. Lihat 5.6
+dan `../hanaka-project-back-end/context/backend/admin-panel.md`.
 
 ---
 
@@ -137,7 +126,7 @@ src/
 - Register/Login → `POST /api/auth/register` atau `/login` → JWT di localStorage (`hanaka_auth_token`)
 - Auth restore on mount: `GET /api/auth/me`
 - Logout: hapus token dari localStorage
-- `role: 'admin'` → redirect ke `/admin/dashboard`
+- `role: 'admin'` → **handoff ke backend** (`{BACKEND}/admin/login?token=<JWT>`), bukan route React (lihat 5.6)
 - Guest cart pakai `X-Session-Token` header (localStorage `hanaka_session_token`)
 - Login/register → backend auto-merge guest cart ke user cart
 
@@ -166,9 +155,18 @@ src/
 - Midtrans webhook → backend update DB → polling detect `paid` → redirect
 - Countdown dari `expiresAt` (ISO-8601 UTC) — `new Date(expiresAt)` selalu benar
 
-### 5.6 Admin
-- Login sebagai admin → `role: 'admin'` → `AdminRoute` mengizinkan akses
+### 5.6 Admin (Server-Rendered di Backend)
+- Admin panel **bukan lagi di frontend** — dipindah ke backend (PHP Slim, halaman HTML).
+- Login tetap di frontend (`LoginPage`). Jika `role === 'admin'`:
+  `goToAdminPanel()` (di `utils/adminHandoff.js`) → `window.location` ke
+  `{BACKEND}/admin/login?token=<JWT>`. Backend verifikasi JWT, set cookie HttpOnly
+  `hanaka_admin_token` (JWT **yang sama**), redirect ke `/admin/dashboard`.
+- Header customer (`AppLayout`) menampilkan link **Admin Panel** (handoff yang sama)
+  bila `currentUser.role === 'admin'`. `GuestRoute` juga meng-handoff admin yang
+  sudah login bila membuka `/login` atau `/register`.
+- `{BACKEND}` diturunkan dari `VITE_API_URL` (buang akhiran `/api`).
 - Akun default dev: `admin@hanakacake.com` / `Admin12345`
+- Detail backend: `../hanaka-project-back-end/context/backend/admin-panel.md`
 
 ---
 
@@ -205,6 +203,7 @@ File: `src/validation/customValidation.js`
 6. **React 19 + React Compiler aktif** — kode harus compatible (no side effects in render).
 7. **`data/products.js` sudah legacy** — data produk dari API, bukan dari file ini.
 8. **Backend repo**: `../hanaka-project-back-end` — baca context di sana untuk implementasi backend.
+9. **Admin panel ada di backend** (server-rendered PHP) — jangan buat ulang halaman admin di React. Frontend hanya handoff login admin ke backend (`utils/adminHandoff.js`). Lihat 5.6.
 
 ---
 
@@ -253,6 +252,14 @@ VITE_API_URL=http://localhost:8080/api
 - `apiService.js`: header `ngrok-skip-browser-warning`
 - Backend: MidtransService, GenerateQrisAction, PaymentStatusAction, PaymentWebhookAction
 - CORS fix: `ResponseEmitter.php` tambah `ngrok-skip-browser-warning`
+
+### Fase 4 — Admin Panel Pindah ke Backend (Juni 2026)
+- Admin SPA React **dihapus**: `pages/admin/*`, `AdminLayout`, `AdminRoute`, `adminApi.js`, `styles/admin.css`, route `/admin/*` di `App.jsx`
+- `utils/adminHandoff.js`: `getAdminHandoffUrl()` / `goToAdminPanel()`
+- `LoginPage`: admin login → handoff ke backend (bukan `navigate('/admin/...')`)
+- `AppLayout`: link "Admin Panel" → URL handoff backend
+- `GuestRoute`: admin yang sudah login di-handoff ke backend
+- Backend: admin server-rendered (PHP Slim) — lihat `../hanaka-project-back-end/context/backend/admin-panel.md`
 
 ---
 

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 import { validateLoginInput } from '../models/authModel.js'
 import { hasAnyError } from '../validation/customValidation.js'
+import { goToAdminPanel } from '../utils/adminHandoff.js'
 
 const initialForm = {
   email: '',
@@ -52,7 +53,8 @@ function LoginPage() {
     try {
       const result = await loginAccount(formValues)
       if (result.user.role === 'admin') {
-        navigate('/admin/dashboard', { replace: true })
+        // Admin panel is server-rendered in the backend — hand off the JWT there.
+        goToAdminPanel()
       } else {
         const redirectTo = location.state?.redirectTo ?? '/'
         navigate(redirectTo, { replace: true })
