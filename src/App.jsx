@@ -19,7 +19,42 @@ function App() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path="/home" element={<Navigate to="/" replace />} />
+        <Route path="/menu" element={<MenuPage />} />
+        <Route path="/menu/:productId" element={<CustomizeCakePage />} />
+        <Route path="/cart" element={<CartPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/payment/:orderId" element={<PaymentQrisPage />} />
+        <Route path="/lacak" element={<TrackOrderPage />} />
+        <Route path="/menu-khusus" element={<MenuKhususPage />} />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <OrderHistoryPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
+
+      <Route
+        path="/login"
+        element={
+          <GuestRoute>
+            <LoginPage />
+          </GuestRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <GuestRoute>
+            <RegisterPage />
+          </GuestRoute>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
