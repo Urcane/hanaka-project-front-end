@@ -8,6 +8,7 @@ const centerNavItems = [
   { to: '/menu', label: 'MENU' },
   { to: '/cart', label: 'KERANJANG' },
   { to: '/checkout', label: 'CHECKOUT' },
+  { to: '/lacak', label: 'LACAK PESANAN' },
 ]
 
 function AppLayout() {
@@ -34,7 +35,7 @@ function AppLayout() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `nav-link${isActive ? ' is-active' : ''}`
+                `nav-link${isActive ? ' is-active' : ''}` 
               }
             >
               {item.label}
@@ -43,8 +44,14 @@ function AppLayout() {
           {currentUser && (
             <NavLink
               to="/orders"
-              className={({ isActive }) =>
-                `nav-link${isActive ? ' is-active' : ''}`
+              className={
+                function ({isActive}) {
+                  if (isActive) {
+                    return 'nav-link is-active'
+                  } else {
+                    return 'nav-link'
+                  }
+                }
               }
             >
               ORDERS

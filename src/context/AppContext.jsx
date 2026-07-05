@@ -21,7 +21,7 @@ import {
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const [products, setProducts] = useState([])
+  
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
 
   const [cartItems, setCartItems] = useState([])
@@ -31,7 +31,11 @@ export function AppProvider({ children }) {
 
   const [userOrders, setUserOrders] = useState([])
 
+  const [products, setProducts] = useState([])
+
   // ── Products ──
+  // dipanggil sekali saat AppContext pertama kali di-mount, untuk memuat daftar produk dari backend.
+  // dipanggil ketika user membuka halaman apapun, untuk menampilkan daftar produk yang tersedia.
   useEffect(() => {
     let cancelled = false
     fetchProducts()
@@ -43,6 +47,7 @@ export function AppProvider({ children }) {
       })
       .finally(() => {
         if (!cancelled) setIsLoadingProducts(false)
+        // fungsinya untuk menandai bahwa proses pemuatan produk telah selesai
       })
     return () => { cancelled = true }
   }, [])

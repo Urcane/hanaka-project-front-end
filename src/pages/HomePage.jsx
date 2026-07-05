@@ -4,7 +4,7 @@ import { resolveProductImage } from '../utils/productImages.js'
 import heroBanner from '../assets/big-hero.png'
 
 function HomePage() {
-  const { featuredProducts, isLoadingProducts } = useApp()
+  const { products, featuredProducts, isLoadingProducts } = useApp()
 
   return (
     <section className="landing-page">
@@ -33,7 +33,7 @@ function HomePage() {
           </div>
         ) : (
           <div className="bestseller-grid">
-            {featuredProducts.map((product) => {
+            {products.map((product) => {
               const img = resolveProductImage(product.coverImage)
               return (
                 <article className="bestseller-card" key={product.id}>

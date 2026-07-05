@@ -15,6 +15,13 @@ export async function apiFetchOrderById(orderId) {
   return data.order
 }
 
+export async function apiTrackOrder(orderNumber) {
+  const data = await api.get(
+    `/orders/track?number=${encodeURIComponent(orderNumber)}`, // Misalnya: HNK-20260624-103000-123
+  )
+  return data.order
+}
+
 export async function apiMarkOrderPaid(orderId) {
   const data = await api.patch(
     `/orders/${encodeURIComponent(orderId)}/pay`,

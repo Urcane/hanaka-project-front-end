@@ -11,46 +11,15 @@ import MenuPage from './pages/MenuPage.jsx'
 import OrderHistoryPage from './pages/OrderHistoryPage.jsx'
 import PaymentQrisPage from './pages/PaymentQrisPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
+import TrackOrderPage from './pages/TrackOrderPage.jsx'
+import MenuKhususPage from './pages/MenuKhususPage.jsx'
 
 function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
-        <Route path="/home" element={<Navigate to="/" replace />} />
-        <Route path="/menu" element={<MenuPage />} />
-        <Route path="/menu/:productId" element={<CustomizeCakePage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/payment/:orderId" element={<PaymentQrisPage />} />
-        <Route
-          path="/orders"
-          element={
-            <ProtectedRoute>
-              <OrderHistoryPage />
-            </ProtectedRoute>
-          }
-        />
       </Route>
-
-      <Route
-        path="/login"
-        element={
-          <GuestRoute>
-            <LoginPage />
-          </GuestRoute>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <GuestRoute>
-            <RegisterPage />
-          </GuestRoute>
-        }
-      />
-
-      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
