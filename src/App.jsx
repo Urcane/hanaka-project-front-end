@@ -7,6 +7,7 @@ import CheckoutPage from './pages/CheckoutPage.jsx'
 import CustomizeCakePage from './pages/CustomizeCakePage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import LogoutPage from './pages/LogoutPage.jsx'
 import MenuPage from './pages/MenuPage.jsx'
 import OrderHistoryPage from './pages/OrderHistoryPage.jsx'
 import PaymentQrisPage from './pages/PaymentQrisPage.jsx'
@@ -53,6 +54,8 @@ function App() {
           </GuestRoute>
         }
       />
+
+      <Route path="/logout" element={<LogoutPage />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
