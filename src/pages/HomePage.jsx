@@ -33,7 +33,7 @@ function HomePage() {
           </div>
         ) : (
           <div className="bestseller-grid">
-            {products.map((product) => {
+            {featuredProducts.map((product) => {
               const img = resolveProductImage(product.coverImage)
               return (
                 <article className="bestseller-card" key={product.id}>
