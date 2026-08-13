@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
-import LocationPickerMap from '../components/LocationPickerMap.jsx'
+import LocationPickerModal from '../components/LocationPickerModal.jsx'
 import {
   PAYMENT_METHODS,
   validateCheckoutInput,
@@ -37,6 +37,7 @@ function CheckoutPage() {
   // lacak pesanan dan peta sebaran order di panel owner.
   const [deliveryPoint, setDeliveryPoint] = useState(null)
   const [storeCenter, setStoreCenter] = useState(STORE_FALLBACK)
+  const [isMapOpen, setIsMapOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -260,20 +261,44 @@ function CheckoutPage() {
               <div className="field">
                 <strong>Titik Lokasi Pengantaran</strong>
                 <p className="muted-text map-hint">
-                  Klik atau geser pin ke titik pengantaran. Opsional, tapi
-                  membantu kurir dan membuat status pengantaran bisa dilacak di
-                  peta.
+                  Opsional, tapi membantu kurir dan membuat pengantaran bisa
+                  dilacak di peta.
                 </p>
-                <LocationPickerMap
-                  center={storeCenter}
-                  value={deliveryPoint}
-                  onChange={setDeliveryPoint}
-                />
-                <p className="muted-text map-coord">
-                  {deliveryPoint
-                    ? `Titik dipilih: ${deliveryPoint.lat.toFixed(5)}, ${deliveryPoint.lng.toFixed(5)}`
-                    : 'Belum ada titik yang dipilih.'}
-                </p>
+
+                <div className="location-field">
+                  <div className="location-field-value">
+                    {deliveryPoint ? (
+                      <>
+                        <span className="location-pin" aria-hidden="true">📍</span>
+                        <span className="map-coord">
+                          {deliveryPoint.lat.toFixed(6)}, {deliveryPoint.lng.toFixed(6)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="muted-text">Belum ada titik dipilih</span>
+                    )}
+                  </div>
+
+                  <div className="location-field-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setIsMapOpen(true)}
+                    >
+                      {deliveryPoint ? 'Ubah Titik' : 'Pilih di Peta'}
+                    </button>
+                    {deliveryPoint && (
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => setDeliveryPoint(null)}
+                      >
+                        Hapus
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {(errors.deliveryLat || errors.deliveryLng) && (
                   <span className="field-error">
                     {errors.deliveryLat || errors.deliveryLng}
@@ -320,6 +345,17 @@ function CheckoutPage() {
           )}
         </aside>
       </div>
+
+      <LocationPickerModal
+        isOpen={isMapOpen}
+        center={storeCenter}
+        value={deliveryPoint}
+        onConfirm={(point) => {
+          setDeliveryPoint(point)
+          setIsMapOpen(false)
+        }}
+        onClose={() => setIsMapOpen(false)}
+      />
     </section>
   )
 }

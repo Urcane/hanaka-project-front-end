@@ -51,19 +51,29 @@ function DeliveryMiniMap({ order, storePoint }) {
       .addTo(layer)
       .bindPopup('<strong>Tujuan pengantaran</strong>')
 
-    L.polyline(
-      [
-        [store.lat, store.lng],
-        [destination.lat, destination.lng],
-      ],
-      { color: '#c8683d', weight: 3, dashArray: '6 8', opacity: 0.8 },
-    ).addTo(layer)
-
     // Interpolasi lurus antara toko dan tujuan sesuai progres status.
     const courier = {
       lat: store.lat + (destination.lat - store.lat) * progress,
       lng: store.lng + (destination.lng - store.lng) * progress,
     }
+
+    // Garis tracking dibagi dua: bagian yang sudah dilalui digambar tegas,
+    // sisanya putus-putus — sehingga progres terbaca sekali lihat.
+    L.polyline(
+      [
+        [store.lat, store.lng],
+        [courier.lat, courier.lng],
+      ],
+      { color: '#934428', weight: 4, opacity: 0.95 },
+    ).addTo(layer)
+
+    L.polyline(
+      [
+        [courier.lat, courier.lng],
+        [destination.lat, destination.lng],
+      ],
+      { color: '#c8683d', weight: 3, dashArray: '6 8', opacity: 0.65 },
+    ).addTo(layer)
 
     L.circleMarker([courier.lat, courier.lng], {
       radius: 9,
