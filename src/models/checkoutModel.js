@@ -69,5 +69,9 @@ export function buildCheckoutPayload(values) {
       values.pickupMethod === 'delivery' ? values.address.trim() : 'Ambil di toko',
     addressNote: values.addressNote?.trim() ?? '',
     paymentMethod: values.paymentMethod,
+    // Titik antar opsional dari peta checkout — hanya relevan untuk delivery.
+    ...(values.pickupMethod === 'delivery' && values.deliveryLat && values.deliveryLng
+      ? { deliveryLat: values.deliveryLat, deliveryLng: values.deliveryLng }
+      : {}),
   }
 }

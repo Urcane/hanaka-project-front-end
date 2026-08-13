@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 import { validateLoginInput } from '../models/authModel.js'
 import { hasAnyError } from '../validation/customValidation.js'
-import { goToAdminPanel } from '../utils/adminHandoff.js'
+import { goToAdminPanel, isStaffRole } from '../utils/adminHandoff.js'
 
 const initialForm = {
   email: '',
@@ -52,8 +52,9 @@ function LoginPage() {
     setIsSubmitting(true)
     try {
       const result = await loginAccount(formValues)
-      if (result.user.role === 'admin') {
-        // Admin panel is server-rendered in the backend — hand off the JWT there.
+      if (isStaffRole(result.user.role)) {
+        // Admin & owner panels are server-rendered in the backend — hand off
+        // the JWT there and let the backend route to the right panel.
         goToAdminPanel()
       } else {
         const redirectTo = location.state?.redirectTo ?? '/'

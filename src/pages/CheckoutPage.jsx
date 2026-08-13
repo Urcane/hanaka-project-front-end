@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
+import LocationPickerMap from '../components/LocationPickerMap.jsx'
 import {
   PAYMENT_METHODS,
   validateCheckoutInput,
 } from '../models/checkoutModel.js'
 import { storeProfile } from '../data/products.js'
+import { fetchStoreProfile } from '../services/storeApi.js'
+import { STORE_FALLBACK } from '../utils/mapSetup.js'
 import { hasAnyError } from '../validation/customValidation.js'
 
 function CheckoutPage() {
@@ -29,6 +32,27 @@ function CheckoutPage() {
   const [submitError, setSubmitError] = useState('')
   const [successOrder, setSuccessOrder] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Titik antar yang dipilih pelanggan di peta (opsional). Dipakai untuk peta
+  // lacak pesanan dan peta sebaran order di panel owner.
+  const [deliveryPoint, setDeliveryPoint] = useState(null)
+  const [storeCenter, setStoreCenter] = useState(STORE_FALLBACK)
+
+  useEffect(() => {
+    let cancelled = false
+    fetchStoreProfile()
+      .then((store) => {
+        if (!cancelled && store?.lat && store?.lng) {
+          setStoreCenter({ lat: store.lat, lng: store.lng })
+        }
+      })
+      .catch(() => {
+        // Pakai koordinat cadangan bila profil toko gagal dimuat.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   if (successOrder) {
     return (
@@ -98,6 +122,11 @@ function CheckoutPage() {
         formValues.pickupMethod === 'delivery' ? formValues.address.trim() : '',
       addressNote: formValues.addressNote?.trim() ?? '',
       paymentMethod: formValues.paymentMethod,
+    }
+
+    if (formValues.pickupMethod === 'delivery' && deliveryPoint) {
+      payload.deliveryLat = deliveryPoint.lat
+      payload.deliveryLng = deliveryPoint.lng
     }
 
     setIsSubmitting(true)
@@ -227,6 +256,30 @@ function CheckoutPage() {
                   <span className="field-error">{errors.addressNote}</span>
                 )}
               </label>
+
+              <div className="field">
+                <strong>Titik Lokasi Pengantaran</strong>
+                <p className="muted-text map-hint">
+                  Klik atau geser pin ke titik pengantaran. Opsional, tapi
+                  membantu kurir dan membuat status pengantaran bisa dilacak di
+                  peta.
+                </p>
+                <LocationPickerMap
+                  center={storeCenter}
+                  value={deliveryPoint}
+                  onChange={setDeliveryPoint}
+                />
+                <p className="muted-text map-coord">
+                  {deliveryPoint
+                    ? `Titik dipilih: ${deliveryPoint.lat.toFixed(5)}, ${deliveryPoint.lng.toFixed(5)}`
+                    : 'Belum ada titik yang dipilih.'}
+                </p>
+                {(errors.deliveryLat || errors.deliveryLng) && (
+                  <span className="field-error">
+                    {errors.deliveryLat || errors.deliveryLng}
+                  </span>
+                )}
+              </div>
             </>
           )}
 

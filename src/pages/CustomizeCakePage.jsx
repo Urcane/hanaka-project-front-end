@@ -1,11 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 import { validateCustomizationInput } from '../models/cartModel.js'
-import { findProductById, findSizeOption } from '../models/productModel.js'
+import {
+  findFirstAvailableSize,
+  findProductById,
+  findSizeOption,
+  getMaxOrderableQuantity,
+  getSizeStock,
+  isProductAvailable,
+  isSizeAvailable,
+} from '../models/productModel.js'
+import { fetchProductById } from '../services/productsApi.js'
 import { formatRupiah } from '../utils/currency.js'
 import { resolveProductImage } from '../utils/productImages.js'
 import { hasAnyError } from '../validation/customValidation.js'
+
+// Stok ditarik ulang berkala supaya angka yang dilihat pelanggan mendekati
+// kondisi nyata tanpa perlu reload halaman.
+const STOCK_POLL_MS = 20000
 
 function createInitialForm(product, editingItem) {
   if (!product) {
@@ -22,8 +35,11 @@ function createInitialForm(product, editingItem) {
     }
   }
 
+  // Mulai dari ukuran pertama yang stoknya masih ada.
+  const defaultSize = findFirstAvailableSize(product) ?? product.sizes[0]
+
   return {
-    sizeId: product.sizes[0].id,
+    sizeId: defaultSize?.id ?? '',
     colorText: '',
     theme: '',
     quantity: 1,
@@ -41,10 +57,16 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
 
   const selectedSize =
     findSizeOption(product, formValues.sizeId) ?? product.sizes[0]
-  const quantity = Math.max(1, Math.min(5, Number(formValues.quantity) || 1))
+  const selectedStock = getSizeStock(selectedSize)
+  const maxQuantity = Math.max(1, getMaxOrderableQuantity(selectedSize))
+  const quantity = Math.max(
+    1,
+    Math.min(maxQuantity, Number(formValues.quantity) || 1),
+  )
   const dynamicTotal = selectedSize.price * quantity
   const isEditingCurrentProduct =
     Boolean(editingItem) && editingItem.productId === product.id
+  const isSelectedSoldOut = selectedStock <= 0
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -73,7 +95,7 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
   const handleQtyChange = (delta) => {
     setFormValues((prev) => ({
       ...prev,
-      quantity: Math.max(1, Math.min(5, prev.quantity + delta)),
+      quantity: Math.max(1, Math.min(maxQuantity, prev.quantity + delta)),
     }))
   }
 
@@ -84,6 +106,17 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
     const validationErrors = validateCustomizationInput(product, formValues)
     setErrors(validationErrors)
     if (hasAnyError(validationErrors)) return
+
+    // Stok bisa berubah sejak halaman dibuka — cegah submit yang pasti ditolak
+    // backend, dengan pesan yang lebih jelas.
+    if (isSelectedSoldOut) {
+      setSubmitError('Stok ukuran ini sedang habis. Silakan pilih ukuran lain.')
+      return
+    }
+    if (quantity > selectedStock) {
+      setSubmitError(`Stok ukuran ini tinggal ${selectedStock}.`)
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -121,18 +154,45 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
         <h2>{product.name}</h2>
         <p className="muted-text">{product.longDescription ?? product.shortDescription}</p>
 
+        {!isProductAvailable(product) && (
+          <p className="stock-notice">
+            Semua ukuran varian ini sedang habis. Silakan pilih varian lain di
+            halaman menu.
+          </p>
+        )}
+
         <h3>Pilih Ukuran</h3>
         <div className="size-circles">
-          {product.sizes.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`size-circle${formValues.sizeId === s.id ? ' is-selected' : ''}`}
-              onClick={() => handleSizeClick(s.id)}
-            >
-              {s.label}
-            </button>
-          ))}
+          {product.sizes.map((s) => {
+            const stock = getSizeStock(s)
+            const available = isSizeAvailable(s)
+            return (
+              <div className="size-option" key={s.id}>
+                <button
+                  type="button"
+                  className={`size-circle${formValues.sizeId === s.id ? ' is-selected' : ''}${
+                    available ? '' : ' is-sold-out'
+                  }`}
+                  onClick={() => handleSizeClick(s.id)}
+                  disabled={!available}
+                  aria-label={
+                    available
+                      ? `Ukuran ${s.label} cm, sisa stok ${stock}`
+                      : `Ukuran ${s.label} cm, stok habis`
+                  }
+                >
+                  {s.label}
+                </button>
+                <span
+                  className={`size-stock${available ? '' : ' is-empty'}${
+                    s.lowStock ? ' is-low' : ''
+                  }`}
+                >
+                  {available ? `Sisa ${stock}` : 'Habis'}
+                </span>
+              </div>
+            )
+          })}
         </div>
         {errors.sizeId && <p className="field-error">{errors.sizeId}</p>}
 
@@ -175,16 +235,28 @@ function CustomizeCakeForm({ product, editingItem, onSave }) {
         <div className="qty-stepper">
           <button type="button" onClick={() => handleQtyChange(-1)}>−</button>
           <span>{quantity}</span>
-          <button type="button" onClick={() => handleQtyChange(1)}>+</button>
+          <button
+            type="button"
+            onClick={() => handleQtyChange(1)}
+            disabled={quantity >= maxQuantity}
+          >
+            +
+          </button>
         </div>
         <span className="detail-total-label">Total</span>
         <span className="detail-total-price">{formatRupiah(dynamicTotal)}</span>
-        <button type="submit" className="detail-add-btn" disabled={isSubmitting}>
+        <button
+          type="submit"
+          className="detail-add-btn"
+          disabled={isSubmitting || isSelectedSoldOut}
+        >
           {isSubmitting
             ? 'Memproses...'
-            : isEditingCurrentProduct
-              ? 'Update cart'
-              : 'Add to cart'}
+            : isSelectedSoldOut
+              ? 'Stok habis'
+              : isEditingCurrentProduct
+                ? 'Update cart'
+                : 'Add to cart'}
         </button>
       </div>
     </form>
@@ -199,17 +271,52 @@ function CustomizeCakePage() {
   const { products, isLoadingProducts, cartItems, addToCart, editCartItem } = useApp()
   const navigate = useNavigate()
 
-  const product = useMemo(
+  // Salinan produk yang selalu di-refresh dari backend supaya angka stok tetap
+  // aktual selama halaman dibuka. Data dari context dipakai sebagai tampilan
+  // awal agar halaman tidak kosong menunggu request pertama.
+  const [liveProduct, setLiveProduct] = useState(null)
+
+  useEffect(() => {
+    if (!productId) return undefined
+
+    let cancelled = false
+    const loadStock = () => {
+      fetchProductById(productId)
+        .then((fresh) => {
+          if (!cancelled) setLiveProduct(fresh)
+        })
+        .catch(() => {
+          // Biarkan data terakhir tetap tampil bila request gagal.
+        })
+    }
+
+    loadStock()
+    const timer = setInterval(loadStock, STOCK_POLL_MS)
+    window.addEventListener('focus', loadStock)
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      window.removeEventListener('focus', loadStock)
+    }
+  }, [productId])
+
+  const contextProduct = useMemo(
     () => findProductById(products, productId),
     [products, productId],
   )
+
+  const product =
+    liveProduct && liveProduct.id === productId ? liveProduct : contextProduct
 
   const editingItem = useMemo(() => {
     if (!editId) return null
     return cartItems.find((item) => item.id === editId) ?? null
   }, [cartItems, editId])
 
-  if (isLoadingProducts) {
+  // Bila polling stok sudah membawa produknya, halaman tidak perlu menunggu
+  // daftar produk di context selesai dimuat.
+  if (isLoadingProducts && !product) {
     return (
       <section className="panel stack-gap-md">
         <div className="skeleton skeleton-title" />

@@ -1,12 +1,47 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
-import { getProductStartingPrice } from '../models/productModel.js'
+import {
+  getProductStartingPrice,
+  getProductTotalStock,
+} from '../models/productModel.js'
+import { fetchProducts } from '../services/productsApi.js'
 import { formatRupiah } from '../utils/currency.js'
 import { resolveProductImage } from '../utils/productImages.js'
 import heroBg from '../assets/hero.png'
 
+// Katalog di-refresh berkala supaya badge stok tetap mengikuti perubahan yang
+// dilakukan admin tanpa perlu reload halaman.
+const STOCK_POLL_MS = 30000
+
 function MenuPage() {
-  const { products, isLoadingProducts } = useApp()
+  const { products: contextProducts, isLoadingProducts } = useApp()
+  const [liveProducts, setLiveProducts] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadStock = () => {
+      fetchProducts()
+        .then((fresh) => {
+          if (!cancelled) setLiveProducts(fresh)
+        })
+        .catch(() => {
+          // Pertahankan data terakhir bila request gagal.
+        })
+    }
+
+    loadStock()
+    const timer = setInterval(loadStock, STOCK_POLL_MS)
+    window.addEventListener('focus', loadStock)
+
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+      window.removeEventListener('focus', loadStock)
+    }
+  }, [])
+
+  const products = liveProducts ?? contextProducts
 
   return (
     <section className="stack-gap-lg">
@@ -41,10 +76,12 @@ function MenuPage() {
           <div className="menu-product-grid">
             {products.map((product) => {
               const img = resolveProductImage(product.coverImage)
+              const totalStock = getProductTotalStock(product)
+              const isSoldOut = totalStock <= 0
               return (
                 <Link
                   to={`/menu/${product.id}`}
-                  className="menu-product-card"
+                  className={`menu-product-card${isSoldOut ? ' is-sold-out' : ''}`}
                   key={product.id}
                 >
                   {img ? (
@@ -59,6 +96,9 @@ function MenuPage() {
                       style={{ background: product.coverGradient }}
                     />
                   )}
+                  <span className={`stock-badge${isSoldOut ? ' is-empty' : ''}`}>
+                    {isSoldOut ? 'Stok habis' : `Stok ${totalStock}`}
+                  </span>
                   <p className="menu-product-name">{product.name}</p>
                   <p className="menu-product-price">
                     {formatRupiah(getProductStartingPrice(product))}

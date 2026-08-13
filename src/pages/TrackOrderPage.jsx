@@ -1,20 +1,41 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import DeliveryMiniMap from '../components/DeliveryMiniMap.jsx'
+import OrderProgress from '../components/OrderProgress.jsx'
 import { validateTrackInput, normalizeOrderNumber } from '../models/trackModel.js'
 import { hasAnyError } from '../validation/customValidation.js'
 import { apiTrackOrder } from '../services/ordersApi.js'
+import { fetchStoreProfile } from '../services/storeApi.js'
 import { formatRupiah } from '../utils/currency.js'
+import { STORE_FALLBACK } from '../utils/mapSetup.js'
 
 function TrackOrderPage() {
   const [orderNumber, setOrderNumber] = useState('')
   const [errors, setErrors] = useState({})
-  
+
   const [status, setStatus] = useState('idle') // idle | loading | success | notfound | error
   const [errorMessage, setErrorMessage] = useState('')
 
-  var variable = "isi data dari sebuah order yang di tracking";
+  const [storePoint, setStorePoint] = useState(STORE_FALLBACK)
 
-  const [order, setOrder] = useState(null) 
+  const [order, setOrder] = useState(null)
   // Set Order digunakan untuk menyimpan data order yang ditemukan setelah melacak pesanan.
+
+  // Koordinat toko dipakai sebagai titik awal rute di peta.
+  useEffect(() => {
+    let cancelled = false
+    fetchStoreProfile()
+      .then((store) => {
+        if (!cancelled && store?.lat && store?.lng) {
+          setStorePoint({ lat: store.lat, lng: store.lng })
+        }
+      })
+      .catch(() => {
+        // Pakai koordinat cadangan bila profil toko gagal dimuat.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -100,6 +121,11 @@ function TrackOrderPage() {
             </div>
             <span className="status-badge">{order.status}</span>
           </div>
+
+          <OrderProgress order={order} />
+
+          <DeliveryMiniMap order={order} storePoint={storePoint} />
+
           <div className="history-items">
             {order.items.map((item) => (
               <div key={item.id} className="history-item-row">

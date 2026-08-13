@@ -7,6 +7,27 @@ function CartPage() {
   const { cartItems, cartSubtotal, isCartLoading, updateCartQuantity, removeCartItem } = useApp()
   const navigate = useNavigate()
   const [fulfillment, setFulfillment] = useState('pickup')
+  // Pesan stok per item — backend menolak (409) bila qty melebihi stok terkini.
+  const [stockErrors, setStockErrors] = useState({})
+
+  const handleQuantityChange = async (itemId, quantity) => {
+    if (quantity < 1) return
+
+    try {
+      await updateCartQuantity(itemId, quantity)
+      setStockErrors((prev) => {
+        if (!prev[itemId]) return prev
+        const next = { ...prev }
+        delete next[itemId]
+        return next
+      })
+    } catch (err) {
+      setStockErrors((prev) => ({
+        ...prev,
+        [itemId]: err.message || 'Jumlah tidak bisa diperbarui.',
+      }))
+    }
+  }
 
   if (isCartLoading) {
     return (
@@ -71,18 +92,21 @@ function CartPage() {
               <div className="qty-stepper">
                 <button
                   type="button"
-                  onClick={() => updateCartQuantity(item.id, item.quantity - 1)}
+                  onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
                 >
                   −
                 </button>
                 <span>{item.quantity}</span>
                 <button
                   type="button"
-                  onClick={() => updateCartQuantity(item.id, item.quantity + 1)}
+                  onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
                 >
                   +
                 </button>
               </div>
+              {stockErrors[item.id] && (
+                <p className="field-error">{stockErrors[item.id]}</p>
+              )}
             </div>
 
             <div className="cart-subtotal-col">

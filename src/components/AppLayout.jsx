@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/useApp.js'
 import SiteFooter from './SiteFooter.jsx'
-import { getAdminHandoffUrl } from '../utils/adminHandoff.js'
+import { getAdminHandoffUrl, isStaffRole } from '../utils/adminHandoff.js'
 import logoImg from '../assets/logo.png'
 
 const centerNavItems = [
@@ -60,9 +60,9 @@ function AppLayout() {
         </nav>
 
         <div className="header-tools">
-          {currentUser?.role === 'admin' && (
+          {isStaffRole(currentUser?.role) && (
             <a href={getAdminHandoffUrl()} className="ghost-button">
-              Admin Panel
+              {currentUser.role === 'owner' ? 'Owner Panel' : 'Admin Panel'}
             </a>
           )}
           <Link to="/cart" className="cart-icon-link" aria-label="Keranjang">

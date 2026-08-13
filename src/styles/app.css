@@ -609,6 +609,63 @@ textarea:focus {
   border-color: var(--accent-dark);
 }
 
+/* ── Stok produk (live dari backend) ── */
+.size-option {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.size-circle.is-sold-out {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.size-stock {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.size-stock.is-low { color: #b8751e; }
+.size-stock.is-empty { color: var(--danger); }
+
+.stock-notice {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: #fce4ec;
+  color: #b71c1c;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.menu-product-card { position: relative; }
+.menu-product-card.is-sold-out .menu-product-img,
+.menu-product-card.is-sold-out .menu-product-gradient {
+  filter: grayscale(0.7);
+  opacity: 0.7;
+}
+
+.stock-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent-dark);
+  box-shadow: 0 6px 14px rgba(69, 41, 27, 0.12);
+}
+
+.stock-badge.is-empty {
+  background: #b13f3f;
+  color: #fff;
+}
+
 .detail-notes-col {
   grid-column: 1 / -1;
   display: grid;
@@ -1059,4 +1116,131 @@ textarea:focus {
 
 .skeleton-card {
   pointer-events: none;
+}
+
+/* ===================================================================
+   Progress pesanan & peta (Leaflet)
+   =================================================================== */
+
+.order-progress {
+  display: grid;
+  gap: 12px;
+  margin: 4px 0 8px;
+}
+
+.order-progress-cancelled {
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.order-progress-track {
+  position: relative;
+  padding-top: 6px;
+}
+
+/* Garis dasar + garis terisi berada di belakang titik-titik langkah. */
+.order-progress-track::before,
+.order-progress-line {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 6%;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.order-progress-track::before {
+  width: 88%;
+  background: rgba(99, 61, 40, 0.14);
+}
+
+.order-progress-line {
+  max-width: 88%;
+  background: linear-gradient(90deg, var(--accent-dark), var(--accent));
+  transition: width 0.4s ease;
+}
+
+.order-progress-steps {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+}
+
+.order-progress-step {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.order-progress-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid rgba(99, 61, 40, 0.22);
+}
+
+.order-progress-step.is-done .order-progress-dot {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.order-progress-step.is-current .order-progress-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 5px rgba(200, 104, 61, 0.2);
+}
+
+.order-progress-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+.order-progress-step.is-current .order-progress-label,
+.order-progress-step.is-done .order-progress-label {
+  color: var(--ink);
+}
+
+.order-progress.is-cancelled .order-progress-dot {
+  border-color: rgba(177, 63, 63, 0.35);
+}
+
+/* ── Peta ── */
+.map-canvas {
+  height: 280px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  /* Panel Leaflet punya z-index tinggi; tahan supaya tidak menutupi header. */
+  z-index: 0;
+}
+
+.delivery-minimap {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.map-hint,
+.map-coord {
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.map-coord {
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .map-canvas { height: 220px; }
+  .order-progress-label { font-size: 0.68rem; }
 }
